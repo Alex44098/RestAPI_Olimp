@@ -1,0 +1,59 @@
+version: '3.9'
+
+networks:
+  dev:
+    driver: bridge
+
+services:
+# Сервис для разворачивания контейнера с базой данных
+  database:
+    image: postgres:latest
+    restart: always
+    ports: 
+      - "5432:5432"
+    container_name: database
+    volumes:
+      - app_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=WebAPI_DB
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=cheburek
+    networks:
+      - dev
+
+
+# Сервис для разворачивания контейнера с приложением
+  webapi:
+    image: restapi:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+    container_name: webapi
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DbConnection=User ID=postgres;Password=cheburek;Server=database;Port=5432;Database=WebAPI_DB;
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - dev
+
+
+# Сервис для разворачивания контейнера с автотестами
+  tests: 
+    image: mrexpen/planet_olymp_phase1
+    pull_policy: always
+    ports:
+      - "8090:8080"
+    depends_on:
+      - webapi
+    environment:
+      SERVER_URL: http://webapi:8080
+      STAGE: all
+      # all - запуск всех тестов из трёх доступных этапов
+      # 0, 1 или 2 - запуск тестов для соответствующего этапа
+    networks:
+      - dev
+volumes:
+  app_data:
